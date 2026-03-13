@@ -1,0 +1,39 @@
+name: CI / CD
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  JEKYLL_ENV: production
+  LC_ALL: C.UTF-8
+  AWS_DEFAULT_REGION: us-east-1
+  AWS_DISTRIBUTION_ID:
+  AWS_BUCKET_NAME:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        bundler-cache: true
+        ruby-version: '3.4'
+
+    - name: Install dependencies
+      run: bundle install
+
+    - name: "Build Site"
+      run: bundle exec jekyll build -d public
+
+    - name: "Deploy to AWS S3"
+      run: aws s3 sync ./public s3://$AWS_BUCKET_NAME --delete
+
+    - name: "Create AWS Cloudfront Invalidation"
+      run: aws cloudfront create-invalidation --distribution-id $AWS_DISTRIBUTION_ID --paths '/*'
